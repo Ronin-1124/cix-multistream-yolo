@@ -1,0 +1,15 @@
+[project]
+name = "cix-multistream-yolo"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "opencv-python>=4.13.0.92",
+]
+
+[dependency-groups]
+dev = [
+    "black>=26.3.1",
+    "pytest>=9.0.2",
+]
