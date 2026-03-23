@@ -20,6 +20,7 @@ def manager(video_path: str, model_path: str, infer_type: str):
         read_queues = [mp.Queue(maxsize=5) for _ in range(len(video_paths))]
         result_queues = [mp.Queue(maxsize=5) for _ in range(len(video_paths))]
         stop_event = mp.Event()
+        stop_event.clear()
 
     read_threads = reading_threads(
         video_paths=video_paths, read_queues=read_queues, stop_event=stop_event
@@ -42,21 +43,22 @@ def manager(video_path: str, model_path: str, infer_type: str):
 
     fps_start_time = time.time()
     total_frames = 0
-    fps_update_interval = 5
+    fps_update_interval = 1
     is_fullscreen = True
 
     try:
-        while True:
+        while not stop_event.is_set():
             all_results = []
             for i in range(len(read_queues)):
                 try:
-                    result_data = result_queues[i].get(timeout=0.1)
+                    result_data = result_queues[i].get_nowait()
                     all_results.append(result_data)
                     total_frames += 1
                 except Empty:
                     continue
 
             if all_results:
+                print(len(all_results))
                 is_fullscreen, key = display_multi_stream(
                     all_results, is_fullscreen, fps=30
                 )
@@ -74,8 +76,8 @@ def manager(video_path: str, model_path: str, infer_type: str):
 
     except KeyboardInterrupt:
         print(f"正在退出……")
-    finally:
         stop_event.set()
+    finally:
         close_all_windows()
         for t in read_threads:
             t.join(timeout=1)
@@ -83,10 +85,16 @@ def manager(video_path: str, model_path: str, infer_type: str):
             for t in infer_threads:
                 t.join(timeout=1)
         elif infer_type == "process" or infer_type == "p":
+            print("等待推理进程关闭……")
             for p in infer_processes:
-                p.terminate()
-                p.join(timeout=1)
                 if p.is_alive():
-                    p.kill()
-                    p.join()
-            os._exit(0)
+                    p.join(timeout=2)
+                    if p.is_alive():
+                        print(f"退出{p.pid}")
+                        p.terminate()
+            for q in read_queues + result_queues:
+                q.cancel_join_thread()
+                q.close()
+            print("全部清理完成")
+            time.sleep(0.5)
+            os.system("stty sane")

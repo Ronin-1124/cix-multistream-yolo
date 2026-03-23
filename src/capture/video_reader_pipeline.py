@@ -1,5 +1,5 @@
 import threading
-from queue import Queue
+from queue import Queue, Full
 from src.capture.video_reader import VideoReader
 
 
@@ -7,14 +7,16 @@ def reading_thread(
     video_path: str, read_queue: Queue, video_id: int, stop_event: threading.Event
 ):
     frame_id = 0
-    while not stop_event.is_set():
-        reader = VideoReader(video_path=video_path)
-        for frame in reader.read_frames():
-            if stop_event.is_set():
-                break
+    reader = VideoReader(video_path=video_path)
+    for frame in reader.read_frames():
+        if stop_event.is_set():
+            break
+        try:
             read_queue.put([frame, video_id, frame_id])
             frame_id += 1
-        frame_id = 0
+        except Full:
+            print("错误，读取队列满")
+
 
 
 def reading_threads(video_paths: list, read_queues: list, stop_event: threading.Event):

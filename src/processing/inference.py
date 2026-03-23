@@ -1,6 +1,4 @@
-import os
 import numpy as np
-import logging
 from libnoe import (
     NPU,
     NOE_TENSOR_TYPE_INPUT,
@@ -56,14 +54,12 @@ class InferenceEngine:
     def _init_context(self):
         if self.npu.noe_init_context() != 0:
             raise RuntimeError("NPU初始化失败: noe_init_context")
-        print(f"[PID {os.getpid()}] NPU上下文初始化成功")
 
     def _load_graph(self):
         ret, graph_id = self.npu.noe_load_graph(self.model_path)
         if ret != 0:
             raise RuntimeError(f"加载模型失败: {self.model_path}")
         self.graph_id = graph_id
-        print(f"[PID {os.getpid()}] 模型加载成功, graph_id={graph_id}")
 
     def _get_tensor_count(self, tensor_type: int) -> int:
         ret, count = self.npu.noe_get_tensor_count(self.graph_id, tensor_type)
@@ -96,7 +92,6 @@ class InferenceEngine:
         if ret != 0:
             raise RuntimeError("创建推理任务失败")
         self.job_id = job_id
-        print(f"[PID {os.getpid()}] 推理任务创建成功, job_id={job_id}")
 
     def _quantize_input(self, data: np.ndarray, tensor_idx: int) -> np.ndarray:
         """量化输入数据"""

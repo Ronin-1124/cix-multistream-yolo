@@ -46,4 +46,6 @@ class VideoReader:
                 )
                 yield frame
         finally:
-            process.terminate()
+            if self.process:
+                self.process.kill()
+                self.process.communicate(timeout=1)

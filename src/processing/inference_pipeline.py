@@ -27,6 +27,7 @@ def inferencing_process(read_queue: mp.Queue, result_queue: mp.Queue, model_path
         except KeyboardInterrupt:
             break
     model.clean()
+    print("成功清理模型资源")
     time.sleep(1)
     print("进程正常退出")
 
