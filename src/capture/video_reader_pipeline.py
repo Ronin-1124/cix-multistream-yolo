@@ -1,6 +1,6 @@
 import time
 import threading
-from queue import Queue
+from queue import Queue, Full
 from src.capture.video_reader import VideoReader
 from src.utils.tools import get_video_path
 
@@ -12,8 +12,11 @@ def reading_thread(video_path: str, read_queue: Queue, video_id: int, stop_event
         for frame in reader.read_frames():
             if stop_event.is_set():
                 break
-            read_queue.put([frame, video_id, frame_id])
-            frame_id += 1
+            try:
+                read_queue.put([frame, video_id, frame_id], timeout=0.1)
+                frame_id += 1
+            except Full:
+                print("ERROR: READ QUEUE FULL")
         frame_id = 0
 
 

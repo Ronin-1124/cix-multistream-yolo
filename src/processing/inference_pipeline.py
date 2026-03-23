@@ -27,11 +27,11 @@ def inferencing_process(read_queue: mp.Queue, result_queue: mp.Queue, model_path
             continue
         except KeyboardInterrupt:
             break
-    # model.clean()
-    os._exit()
+    model.clean()
     print(f"model cleaned.")
-    time.sleep(1)
+    # time.sleep(0.1)
     print("进程正常退出")
+    return
 
 
 def inferencing_processes(read_queues: list, result_queues: list, model_path: str, stop_event: mp.Event): # type: ignore
@@ -152,8 +152,6 @@ if __name__ == "__main__":
 
     model_path = "models/yolov8n.cix"
 
-    # for i in range(len(video_paths)):
-
 
     infer_processes = inferencing_processes(
         read_queues=read_queues,
@@ -185,22 +183,18 @@ if __name__ == "__main__":
 
     except KeyboardInterrupt:
         print(f"正在退出……")
-        # stop_event.set()
-
-        # for p in infer_processes:
-        #     # model.clean()
-        #     p.join(timeout=0.5)
-        
-        # for t in read_threads:
-        #     t.join(timeout=0.5)
-        # print("saaaa1")
 
     finally:
+        print("Stopping...")
+
         stop_event.set()
+
         for p in infer_processes:
-            # model.clean()
             p.join(timeout=0.5)
+
         for t in read_threads:
             t.join(timeout=0.5)
-        print("saaaa2")
-        # sys.exit(0)
+
+        os.system("stty sane")
+        print("Exit")
+        os._exit(0) 
