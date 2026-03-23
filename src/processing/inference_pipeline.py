@@ -7,9 +7,7 @@ from src.processing.inference import InferenceEngine
 from src.utils.tools import get_video_path, pre_processing
 from src.processing.post_processing import post_processing
 from src.processing.displaying import display_multi_stream, close_all_windows
-import sys
 import os
-
 
 def inferencing_process(read_queue: mp.Queue, result_queue: mp.Queue, model_path: str, stop_event: mp.Event): # type: ignore
     model = InferenceEngine(model_path=model_path)
@@ -29,7 +27,7 @@ def inferencing_process(read_queue: mp.Queue, result_queue: mp.Queue, model_path
             break
     model.clean()
     print(f"model cleaned.")
-    # time.sleep(0.1)
+    time.sleep(2)
     print("进程正常退出")
     return
 
@@ -142,11 +140,12 @@ def inferencing_threads(read_queues: list, result_queues: list, model_path: str,
 
 
 if __name__ == "__main__":
+    stop_event = mp.Event()
+    stop_event.clear()
     video_paths = get_video_path("data/test_videos_360P")
     read_queues = [mp.Queue(maxsize=5) for _ in range(len(video_paths))]
     result_queues = [mp.Queue(maxsize=5) for _ in range(len(video_paths))]
 
-    stop_event = mp.Event()
 
     read_threads = reading_threads(video_paths=video_paths, read_queues=read_queues, stop_event=stop_event)
 
@@ -165,10 +164,10 @@ if __name__ == "__main__":
     fps_update_interval = 2.0
 
     try:
-        while True:
+        while not stop_event.is_set():
             for i in range(len(read_queues)):
                 try:
-                    result_data = result_queues[i].get(timeout=0.1)
+                    result_data = result_queues[i].get_nowait()
                     frame, thread_id, frame_id, detections = result_data
                     total_frames += 1
                 except Empty:
@@ -181,20 +180,19 @@ if __name__ == "__main__":
                 fps_start_time = time.time()
                 total_frames = 0
 
+    
     except KeyboardInterrupt:
-        print(f"正在退出……")
-
-    finally:
-        print("Stopping...")
-
+        print("Stopping")
         stop_event.set()
 
-        for p in infer_processes:
-            p.join(timeout=0.5)
+    finally:
+        for q in read_queues + result_queues:
+            q.cancel_join_thread()
+            q.close()
 
         for t in read_threads:
             t.join(timeout=0.5)
 
         os.system("stty sane")
-        print("Exit")
-        os._exit(0) 
+        print("All threads stopped.")
+        

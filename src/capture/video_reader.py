@@ -40,16 +40,21 @@ class VideoReader:
             str(self.fps),
             '-'
         ]
+
+        self.process = None
+        # self.frame = 0
     
-    def read_frames(self):
-        process = subprocess.Popen(
+    def read_frames(self, stop_event=None):
+        self.process = subprocess.Popen(
             self.cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE
             )
         try:
             while True:
-                raw_frame = process.stdout.read(self.frame_size)
+                if stop_event and stop_event.is_set():
+                    break
+                raw_frame = self.process.stdout.read(self.frame_size)
                 if not raw_frame:
                     break
                 if len(raw_frame) < self.frame_size:
@@ -57,4 +62,6 @@ class VideoReader:
                 frame = np.frombuffer(raw_frame, dtype=np.uint8).reshape((self.height, self.width, 3))
                 yield frame
         finally:
-            process.terminate()
+            if self.process:
+                self.process.kill()
+                self.process.communicate(timeout=1)
