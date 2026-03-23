@@ -186,13 +186,21 @@ if __name__ == "__main__":
         stop_event.set()
 
     finally:
+        print("Waiting for inference processes to clean up...")
+
+        if 'infer_processes' in locals():
+            for p in infer_processes:
+                if p.is_alive():
+                    p.join(timeout=2.0) 
+                    if p.is_alive():
+                        print(f"Force terminating process {p.pid}")
+                        p.terminate()
+
         for q in read_queues + result_queues:
             q.cancel_join_thread()
             q.close()
-
-        for t in read_threads:
-            t.join(timeout=0.5)
-
+        
+        print("All cleaned up.")
+        time.sleep(0.5) 
         os.system("stty sane")
-        print("All threads stopped.")
         

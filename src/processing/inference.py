@@ -142,6 +142,7 @@ class InferenceEngine:
             self.npu.noe_clean_job(self.job_id)
         if hasattr(self, 'graph_id'):
             self.npu.noe_unload_graph(self.graph_id)
+        print(f"清理context资源: [PID {os.getpid()}]")
         self.npu.noe_deinit_context()
 
 
