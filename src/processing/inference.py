@@ -1,10 +1,13 @@
 import os
 import numpy as np
 import logging
-from libnoe import NPU, NOE_TENSOR_TYPE_INPUT, NOE_TENSOR_TYPE_OUTPUT, noe_create_job_cfg_t, noe_data_type_t
-
-
-logger = logging.getLogger(__name__)
+from libnoe import (
+    NPU,
+    NOE_TENSOR_TYPE_INPUT,
+    NOE_TENSOR_TYPE_OUTPUT,
+    noe_create_job_cfg_t,
+    noe_data_type_t,
+)
 
 
 def get_data_type_info(d_type) -> tuple:
@@ -53,14 +56,14 @@ class InferenceEngine:
     def _init_context(self):
         if self.npu.noe_init_context() != 0:
             raise RuntimeError("NPU初始化失败: noe_init_context")
-        logger.info(f"[PID {os.getpid()}] NPU上下文初始化成功")
+        print(f"[PID {os.getpid()}] NPU上下文初始化成功")
 
     def _load_graph(self):
         ret, graph_id = self.npu.noe_load_graph(self.model_path)
         if ret != 0:
             raise RuntimeError(f"加载模型失败: {self.model_path}")
         self.graph_id = graph_id
-        logger.info(f"[PID {os.getpid()}] 模型加载成功, graph_id={graph_id}")
+        print(f"[PID {os.getpid()}] 模型加载成功, graph_id={graph_id}")
 
     def _get_tensor_count(self, tensor_type: int) -> int:
         ret, count = self.npu.noe_get_tensor_count(self.graph_id, tensor_type)
@@ -70,7 +73,11 @@ class InferenceEngine:
 
     def _setup_tensors(self, tensor_type: int):
         tensor_count = self._get_tensor_count(tensor_type)
-        tensor_list = self.in_tensor_desc if tensor_type == NOE_TENSOR_TYPE_INPUT else self.out_tensor_desc
+        tensor_list = (
+            self.in_tensor_desc
+            if tensor_type == NOE_TENSOR_TYPE_INPUT
+            else self.out_tensor_desc
+        )
         props = (
             (self.input_type, self.input_dtype_min, self.input_dtype_max)
             if tensor_type == NOE_TENSOR_TYPE_INPUT
@@ -89,7 +96,7 @@ class InferenceEngine:
         if ret != 0:
             raise RuntimeError("创建推理任务失败")
         self.job_id = job_id
-        logger.info(f"[PID {os.getpid()}] 推理任务创建成功, job_id={job_id}")
+        print(f"[PID {os.getpid()}] 推理任务创建成功, job_id={job_id}")
 
     def _quantize_input(self, data: np.ndarray, tensor_idx: int) -> np.ndarray:
         """量化输入数据"""
@@ -100,14 +107,16 @@ class InferenceEngine:
         quantized = np.clip(
             quantized,
             self.input_dtype_min[tensor_idx],
-            self.input_dtype_max[tensor_idx]
+            self.input_dtype_max[tensor_idx],
         ).astype(self.input_type[tensor_idx])
         return quantized
 
     def _dequantize_output(self, data: bytes, tensor_idx: int) -> np.ndarray:
         """反量化输出数据"""
         out_data = np.frombuffer(data, dtype=self.output_type[tensor_idx])
-        return (out_data.astype(np.float32) + self.out_tensor_desc[tensor_idx].zero_point) / self.out_tensor_desc[tensor_idx].scale
+        return (
+            out_data.astype(np.float32) + self.out_tensor_desc[tensor_idx].zero_point
+        ) / self.out_tensor_desc[tensor_idx].scale
 
     def forward(self, input_datas: np.ndarray) -> list:
         """推理前向传播"""
@@ -120,7 +129,9 @@ class InferenceEngine:
         for i in range(len(self.in_tensor_desc)):
             quantized = self._quantize_input(input_datas, i)
             if len(quantized.tobytes()) != self.in_tensor_desc[i].size:
-                raise RuntimeError(f"输入数据大小错误: 期望{self.in_tensor_desc[i].size}, 实际{len(quantized.tobytes())}")
+                raise RuntimeError(
+                    f"输入数据大小错误: 期望{self.in_tensor_desc[i].size}, 实际{len(quantized.tobytes())}"
+                )
             self.npu.noe_load_tensor(job_id, i, quantized.tobytes())
 
         # 执行推理
@@ -138,14 +149,15 @@ class InferenceEngine:
 
     def clean(self):
         """清理NPU资源"""
-        if hasattr(self, 'job_id'): 
+        if hasattr(self, "job_id"):
             self.npu.noe_clean_job(self.job_id)
-        if hasattr(self, 'graph_id'):
+        if hasattr(self, "graph_id"):
             self.npu.noe_unload_graph(self.graph_id)
         self.npu.noe_deinit_context()
 
 
 if __name__ == "__main__":
+
     def benchmark_multithread(num_threads, num_runs=10, warmup=2):
         model_path = "models/yolov8n.cix"
         fake_input = np.random.rand(1, 3, 640, 640).astype(np.float32)
@@ -171,7 +183,9 @@ if __name__ == "__main__":
         threads = []
         start_all = time.perf_counter()
         for i in range(num_threads):
-            t = threading.Thread(target=worker, args=(engines[i], fake_input, results, i))
+            t = threading.Thread(
+                target=worker, args=(engines[i], fake_input, results, i)
+            )
             threads.append(t)
             t.start()
         for t in threads:

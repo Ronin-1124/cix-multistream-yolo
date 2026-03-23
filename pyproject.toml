@@ -1,7 +1,7 @@
 [project]
 name = "cix-multistream-yolo"
 version = "0.1.0"
-description = "Add your description here"
+description = "A multistream project for Radxa O6/O6N"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -13,3 +13,9 @@ dev = [
     "black>=26.3.1",
     "pytest>=9.0.2",
 ]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.pytest.ini_options]
+testpaths = ["test"]
