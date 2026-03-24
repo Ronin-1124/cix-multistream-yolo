@@ -28,6 +28,7 @@ class VideoReader:
 
         self.cmd = [
             'ffmpeg',
+            '-stream_loop', '-1',
             # '-c:v',
             # self.decoder,
             '-i',

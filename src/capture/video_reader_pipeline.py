@@ -13,11 +13,12 @@ def reading_thread(video_path: str, read_queue: Queue, video_id: int, stop_event
         if stop_event.is_set():
             break
         try:
-            read_queue.put([frame, video_id, frame_id], timeout=0.1)
+            read_queue.put_nowait([frame, video_id, frame_id])
             frame_id += 1
         except Full:
-            print("ERROR: READ QUEUE FULL")
-    # reader.cleanup()
+            pass
+            # print("ERROR: READ QUEUE FULL")
+
     
 
 

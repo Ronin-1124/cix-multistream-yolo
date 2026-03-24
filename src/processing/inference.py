@@ -52,8 +52,7 @@ class InferenceEngine:
 
     def _init_context(self):
         if self.npu.noe_init_context() != 0:
-            raise RuntimeError("NPU初始化失败: noe_init_context")
-        logger.info(f"[PID {os.getpid()}] NPU上下文初始化成功")
+            raise RuntimeError("npu: noe_init_context fail")
 
     def _load_graph(self):
         ret, graph_id = self.npu.noe_load_graph(self.model_path)
@@ -137,13 +136,27 @@ class InferenceEngine:
         return outputs
 
     def clean(self):
-        """清理NPU资源"""
-        if hasattr(self, 'job_id'): 
-            self.npu.noe_clean_job(self.job_id)
-        if hasattr(self, 'graph_id'):
-            self.npu.noe_unload_graph(self.graph_id)
-        print(f"清理context资源: [PID {os.getpid()}]")
-        self.npu.noe_deinit_context()
+        """
+        Clean up resources used by the NPU by performing the following tasks:
+        1. Clean job.
+        2. Unload graph.
+        3. Deinitialize context.
+
+        """
+        ret = self.npu.noe_clean_job(self.job_id)
+        if ret != 0:
+            print("npu: noe_clean_job fail")
+            exit(-1)
+
+        ret = self.npu.noe_unload_graph(self.graph_id)
+        if ret != 0:
+            print("npu: noe_unload_graph fail")
+            exit(-1)
+
+        ret = self.npu.noe_deinit_context()
+        if ret != 0:
+            print("npu: noe_deinit_context fail")
+            exit(-1)
 
 
 if __name__ == "__main__":

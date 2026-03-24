@@ -11,25 +11,28 @@ import os
 
 def inferencing_process(read_queue: mp.Queue, result_queue: mp.Queue, model_path: str, stop_event: mp.Event): # type: ignore
     model = InferenceEngine(model_path=model_path)
-    while not stop_event.is_set():
-        try:
-            frame = read_queue.get(timeout=0.1)
-            frame_prep = pre_processing(frame[0])
-            result = model.forward(frame_prep)
-            result = post_processing(result[0].reshape(84,8400), 0.5, 0.25)
-            frame.append(result)
-            result_queue.put(frame, timeout=0.1)
-        except Empty:
-            continue
-        except mp.queues.Full:
-            continue
-        except KeyboardInterrupt:
-            break
-    model.clean()
-    print(f"model cleaned.")
-    time.sleep(2)
-    print("进程正常退出")
-    return
+    try:
+        while not stop_event.is_set():
+            try:
+                frame = read_queue.get(timeout=0.1)
+                frame_prep = pre_processing(frame[0])
+                result = model.forward(frame_prep)
+                result = post_processing(result[0].reshape(84,8400), 0.5, 0.25)
+                frame.append(result)
+                result_queue.put(frame, timeout=0.1)
+            except Empty:
+                continue
+            except Full:
+                continue
+            except KeyboardInterrupt:
+                break
+            except Exception as e:
+                print(f"NPU forward failed: {e}")
+                break
+    finally:
+        time.sleep(1)
+        model.clean()
+        print("进程正常退出")
 
 
 def inferencing_processes(read_queues: list, result_queues: list, model_path: str, stop_event: mp.Event): # type: ignore
@@ -188,19 +191,26 @@ if __name__ == "__main__":
     finally:
         print("Waiting for inference processes to clean up...")
 
-        if 'infer_processes' in locals():
-            for p in infer_processes:
-                if p.is_alive():
-                    p.join(timeout=2.0) 
-                    if p.is_alive():
-                        print(f"Force terminating process {p.pid}")
-                        p.terminate()
+        for p in infer_processes:
+            if not p.is_alive():
+                continue
+
+            p.join(timeout=1)
+
+            if p.is_alive():
+                print(f"[WARN] Force terminating process {p.pid}")
+                p.terminate()
+                time.sleep(0.1)
+                p.join()
 
         for q in read_queues + result_queues:
-            q.cancel_join_thread()
-            q.close()
-        
+            try:
+                q.cancel_join_thread()
+                q.close()
+            except:
+                pass
+
         print("All cleaned up.")
-        time.sleep(0.5) 
+        time.sleep(0.5)
         os.system("stty sane")
-        
+            
