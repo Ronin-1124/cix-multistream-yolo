@@ -30,7 +30,7 @@ def inferencing_process(read_queue: mp.Queue, result_queue: mp.Queue, model_path
                 print(f"NPU forward failed: {e}")
                 break
     finally:
-        time.sleep(1)
+        # time.sleep(1)
         model.clean()
         print("进程正常退出")
 
@@ -195,12 +195,12 @@ if __name__ == "__main__":
             if not p.is_alive():
                 continue
 
-            p.join(timeout=1)
+            p.join(timeout=0.1)
 
             if p.is_alive():
                 print(f"[WARN] Force terminating process {p.pid}")
                 p.terminate()
-                time.sleep(0.1)
+                # time.sleep(0.1)
                 p.join()
 
         for q in read_queues + result_queues:
@@ -211,6 +211,6 @@ if __name__ == "__main__":
                 pass
 
         print("All cleaned up.")
-        time.sleep(0.5)
+        # time.sleep(0.5)
         os.system("stty sane")
             
